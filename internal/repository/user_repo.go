@@ -9,7 +9,7 @@ import (
 type UserRepository interface {
 	CreateUser(user *domain.User) error
 	FindByEmail(email string) (*domain.User, error)
-	
+	FindByID(id uint) (*domain.User, error)
 	StoreRefreshToken(token *domain.RefreshToken) error
 	FindRefreshToken(tokenString string) (*domain.RefreshToken, error)
 	DeleteRefreshToken(tokenString string) error
@@ -51,4 +51,13 @@ func (r *userRepository) FindRefreshToken(tokenString string) (*domain.RefreshTo
 
 func (r *userRepository) DeleteRefreshToken(tokenString string) error {
 	return r.db.Where("token = ?", tokenString).Delete(&domain.RefreshToken{}).Error
+}
+
+func (r *userRepository) FindByID(id uint) (*domain.User, error) {
+	var user domain.User
+	err := r.db.First(&user, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }

@@ -97,20 +97,13 @@ func (s *authService) Refresh(refreshTokenStr string) (string, error) {
 	if storedToken.Revoked {
 		return "", errors.New("token revoked")
 	}
+	
+	user, err := s.repo.FindByID(storedToken.UserID)
+	if err != nil {
+		return "", errors.New("user not found")
+	}
 
-	// Ambil data user lagi untuk memastikan role belum berubah
-	// Note: Disini kita butuh query user by ID, tapi repo kita baru punya FindByEmail.
-	// Untuk simplifikasi, kita asumsikan user masih valid atau kita bisa tambah method FindByID di user repo nanti.
-	// Kita generate token baru saja:
-	
-	// TODO: Idealnya query user lagi untuk cek role terbaru.
-	// Disini kita hardcode role 'user' atau perlu update repository user untuk GetByID.
-	// Agar aman dan cepat, mari kita anggap role default dulu atau perlu update repo.
-	// TAPI, kita bisa ambil UserID dari storedToken.
-	
-	// Perbaikan cepat: Kita buat token baru.
-	// (Catatan: Untuk production, query user dulu by storedToken.UserID untuk dapat role terbaru)
-	newAccessToken, err := utils.GenerateAccessToken(storedToken.UserID, "user") // Role disederhanakan dulu
+	newAccessToken, err := utils.GenerateAccessToken(user.ID, user.Role)
 	
 	return newAccessToken, err
 }

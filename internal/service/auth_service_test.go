@@ -4,7 +4,9 @@ import (
 	"go-ecommerce/internal/domain"
 	"go-ecommerce/internal/service"
 	"go-ecommerce/pkg/utils"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -26,7 +28,13 @@ func (m *MockUserRepo) FindByEmail(email string) (*domain.User, error) {
 	}
 	return args.Get(0).(*domain.User), args.Error(1)
 }
-
+func (m *MockUserRepo) FindByID(id uint) (*domain.User, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
 func (m *MockUserRepo) StoreRefreshToken(token *domain.RefreshToken) error {
 	args := m.Called(token)
 	return args.Error(0)
@@ -90,4 +98,46 @@ func TestLogin_WrongPassword(t *testing.T) {
 	assert.Error(t, err)                 
 	assert.Nil(t, response)              
 	assert.Equal(t, "invalid email or password", err.Error()) 
+}
+
+func TestRefresh_Success(t *testing.T) {
+	os.Setenv("JWT_SECRET_KEY", "rahasia-testing")
+	os.Setenv("JWT_EXP_TIME", "60") 
+	defer os.Unsetenv("JWT_EXP_TIME")
+
+	mockRepo := new(MockUserRepo)
+	authService := service.NewAuthService(mockRepo)
+
+	refreshTokenStr := "valid-refresh-token"
+	userID := uint(1)
+
+	dummyToken := &domain.RefreshToken{
+		UserID:    userID,
+		Token:     refreshTokenStr,
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+		Revoked:   false,
+	}
+
+	dummyUser := &domain.User{
+		ID:   userID,
+		Role: "admin",
+	}
+
+	mockRepo.On("FindRefreshToken", refreshTokenStr).Return(dummyToken, nil)
+	mockRepo.On("FindByID", userID).Return(dummyUser, nil)
+
+	newToken, err := authService.Refresh(refreshTokenStr)
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, newToken)
+
+	claims, err := utils.ValidateToken(newToken)
+	
+	assert.NoError(t, err, "Token baru harus valid") 
+	
+	if claims != nil {
+		assert.Equal(t, "admin", claims.Role, "Role di token baru harus admin")
+	}
+
+	mockRepo.AssertExpectations(t)
 }
