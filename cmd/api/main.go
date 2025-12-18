@@ -8,7 +8,9 @@ import (
 	"go-ecommerce/internal/repository"
 	"go-ecommerce/internal/service"
 	"log"
-
+	"time"
+	
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -40,6 +42,16 @@ func main() {
 	uploadHandler := handler.NewUploadHandler()
 
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true, 
+		MaxAge:           12 * time.Hour,
+	}))
+
 	r.Static("/uploads", "./uploads")
 	api := r.Group("/api/v1")
 
@@ -47,6 +59,7 @@ func main() {
 	api.POST("/auth/login", authHandler.Login)
 	api.POST("/auth/refresh", authHandler.RefreshToken)
 	api.GET("/products", productHandler.GetAll)
+	api.GET("/products/:id", productHandler.GetByID)
 
 	protected := api.Group("/")
 	protected.Use(middleware.AuthMiddleware())
